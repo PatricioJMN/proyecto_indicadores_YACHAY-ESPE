@@ -290,3 +290,11 @@ CREATE TABLE indicadores_por_ciudad
 )
 ENGINE = MergeTree
 ORDER BY (anio, periodo, ciudad);
+
+
+CREATE TABLE IF NOT EXISTS Estudiantes 
+(
+    primero                 String
+)
+ENGINE = MergeTree
+ORDER BY (primero);
