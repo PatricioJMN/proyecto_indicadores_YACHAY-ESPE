@@ -3,6 +3,11 @@
 CREATE DATABASE IF NOT EXISTS indicadores;
 USE indicadores;
 
+CREATE TABLE IF NOT EXISIT prueba (
+    prueba String
+)ENGINE = MergeTree
+ORDER BY (prueba);
+
 -- Tabla para ENEMDU Persona
 CREATE TABLE IF NOT EXISTS enemdu_persona (
     -- Columnas de texto
