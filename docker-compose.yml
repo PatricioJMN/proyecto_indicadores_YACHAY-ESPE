@@ -114,7 +114,7 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
-      enemdu_ingest:
+      ingest:
         condition: service_completed_successfully
     volumes:
       - ./data:/data:ro
