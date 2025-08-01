@@ -9,6 +9,4 @@ RUN pip install --no-cache-dir \
     clickhouse-connect
 
 # Copia de scripts y tus archivos de headers al build context
-COPY common_headers_persona.csv common_headers_vivienda.csv ingest_persona.py ingest_vivienda.py ingest_codigos.py ./
-
-# CMD ["python", "ingest_codigos.py", "ingest_vivienda.py"]
+COPY ingest_persona.py ingest_vivienda.py ingest_codigos.py ./

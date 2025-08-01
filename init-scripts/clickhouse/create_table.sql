@@ -3,17 +3,13 @@
 CREATE DATABASE IF NOT EXISTS indicadores;
 USE indicadores;
 
-CREATE TABLE IF NOT EXISIT prueba (
-    prueba String
-)ENGINE = MergeTree
-ORDER BY (prueba);
-
 -- Tabla para ENEMDU Persona
 CREATE TABLE IF NOT EXISTS enemdu_persona (
     -- Columnas de texto
     area           Nullable(String),
     ciudad         String,
     cod_inf        Nullable(String),
+    panelm         Nullable(String),
 
     -- Columnas numéricas pequeñas
     condact        Nullable(Int32),
@@ -21,7 +17,6 @@ CREATE TABLE IF NOT EXISTS enemdu_persona (
     empleo         Nullable(Int32),
     estrato        Nullable(Int32),
     nnivins        Nullable(Int32),
-    panelm         Nullable(Int32),
 	secemp         Nullable(Int32),
     rama1          Nullable(Int32),
 	upm            Nullable(Int128),
@@ -289,4 +284,4 @@ CREATE TABLE indicadores_por_ciudad
     manufactura_empleo		Float32
 )
 ENGINE = MergeTree
-ORDER BY (anio, periodo, ciudad);
+ORDER BY (anio, periodo, ciudad);
