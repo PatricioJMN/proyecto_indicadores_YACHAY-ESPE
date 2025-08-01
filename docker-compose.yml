@@ -61,8 +61,6 @@ services:
       - VIVIENDA_DIR=/data/enemdu_vivienda/unprocessed
       - PROCESSED_DIR_VIVIENDA=/data/enemdu_vivienda/processed
 
-      # Directorios dde indicadores
-      - INDICADOR_DIR=/data/resultados
 
       # Logs y errores
       - LOG_DIR=/logs
@@ -73,11 +71,7 @@ services:
     command: ["sh", "-c", "
         python ingest_codigos.py && \
         python ingest_vivienda.py && \
-        python ingest_indicadores.py && \ 
-        python ingest_persona.py"]
-
-
-        
+        python ingest_persona.py"] 
 
   superset:
     image: apache/superset:latest
@@ -132,9 +126,15 @@ services:
       - CH_USER=admin
       - CH_PASSWORD=secret_pw
       - CH_DATABASE=indicadores
-    command: ["python", "calcular_indicadores.py"]
-
-
+      
+      # Directorios de indicadores
+      - INDICADOR_DIR=/data/resultados
+    command: ["sh", "-c", "
+        python calcular_indicadores.py && \
+        python ingest_indicadores.py"] 
+    
+    
+  
 volumes:
   clickhouse_data:
   superset_home:
