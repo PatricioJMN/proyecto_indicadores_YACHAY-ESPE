@@ -29,6 +29,7 @@ table    = os.getenv('CH_TABLE', 'enemdu_persona')
 def ensure_dirs():
     Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
     Path(ERR_DIR).mkdir(parents=True, exist_ok=True)
+    Path(PROCESSED_DIR).mkdir(parents=True, exist_ok=True)
 
 def log(msg: str):
     ts = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')

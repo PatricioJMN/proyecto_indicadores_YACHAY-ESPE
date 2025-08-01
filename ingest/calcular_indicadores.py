@@ -11,7 +11,7 @@ import pandas as pd
 from clickhouse_driver import Client
 
 # ---------- rutas ----------
-ROOT    = Path("/data/enemdu_persona/procesados")
+ROOT    = Path("/data/enemdu_persona/processed")
 OUT_DIR = Path("/data/resultados")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -1,6 +1,6 @@
 # Ignore the 'data' directory
 data/*/processed/*
-data/*/unprocessed/**
+data/*/unprocessed/*
 data/resultados/**
 **/.DS_Store
 # data/enemdu_persona/**
