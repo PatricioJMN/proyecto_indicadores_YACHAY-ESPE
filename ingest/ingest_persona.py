@@ -19,7 +19,6 @@ USE_SENTINELS   = os.getenv('USE_SENTINELS', 'false').lower() in ('1', 'true', '
 DATA_DIR        = os.getenv('PERSONA_DIR', '/data/enemdu_persona/unprocessed')
 PROCESSED_DIR   = os.getenv('PROCESSED_DIR_PERSONA', '/data/enemdu_persona/processed')
 
-# ========= Conexión a ClickHouse =========
 host     = os.getenv('CH_HOST', 'clickhouse')
 port     = int(os.getenv('CH_PORT', 9000))
 user     = os.getenv('CH_USER', 'admin')
@@ -27,11 +26,25 @@ password = os.getenv('CH_PASSWORD', 'secret_pw')
 database = os.getenv('CH_DATABASE', 'indicadores')
 table    = os.getenv('CH_TABLE', 'enemdu_persona')
 
-# ========= Esquemas de columnas =========
+def ensure_dirs():
+    Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
+    Path(ERR_DIR).mkdir(parents=True, exist_ok=True)
+
+def log(msg: str):
+    ts = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    print(f"[{ts} UTC] {msg}", flush=True)
+
+def _is_float(x: str) -> bool:
+    try:
+        float(x)
+        return True
+    except Exception:
+        return False
+
 FLOAT_COLS  = {'fexp','ingrl','ingpc'}
 INT_COLS    = {
     'condact','desempleo','empleo','secemp','estrato','nnivins','rama1',
-    'vivienda','grupo1','hogar','id_hogar','id_persona','id_vivienda', 'upm',
+    'vivienda','grupo1','hogar','id_hogar','id_persona','id_vivienda','upm',
     'p01','p02','p03','p04','p06','p07','p09','p10a','p10b','p15',
     'p20','p21','p22','p23','p24','p25','p26','p27','p28','p29',
     'p32','p33','p34','p35','p36','p37','p38','p39','p40','p41',
@@ -121,14 +134,7 @@ def fetch_table_columns(client: Client, db: str, tbl: str):
         """,
         {'db': db, 'tbl': tbl}
     )
-    cols = []
-    for name, dtype, _ in rows:
-        is_nullable = dtype.startswith('Nullable(')
-        cols.append((name, dtype, is_nullable))
-    return cols
-
-def row_to_insert_values(row_dict, columns_meta):
-    return [coerce_value(name, row_dict.get(name, None)) for name, _dtype, _ in columns_meta]
+    return [(name, dtype, dtype.startswith('Nullable(')) for name, dtype, _ in rows]
 
 def write_failed_row(file_base: str, header, values):
     out_path = Path(ERR_DIR) / f"{file_base}_failed_rows.csv"
@@ -145,6 +151,10 @@ def move_to_processed(path: Path):
     shutil.move(str(path), str(dest))
     log(f"→ Movido '{path.name}' a processed")
 
+def row_to_insert_values(row_dict, columns_meta):
+    return [coerce_value(name, row_dict.get(name, None)) for name, _dtype, _ in columns_meta]
+
+
 # forzar lectura de string cols
 string_dtypes = { col: str for col in STRING_COLS }
 
@@ -152,11 +162,10 @@ def main():
     ensure_dirs()
     client = get_ch_client()
     ensure_db_and_table(client)
-
     columns_meta = fetch_table_columns(client, database, table)
     col_names = [c[0] for c in columns_meta]
     if 'extra' in col_names:
-        raise RuntimeError("La tabla aún tiene la columna 'extra'. Actualiza/elimina esa columna del esquema.")
+        raise RuntimeError("La tabla aún tiene la columna 'extra'.")
     log(f"Columnas en destino ({database}.{table}): {', '.join(col_names)}")
 
     for csv_path in Path(DATA_DIR).glob('*.csv'):
