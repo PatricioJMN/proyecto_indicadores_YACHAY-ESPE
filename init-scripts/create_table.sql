@@ -270,7 +270,7 @@ CREATE TABLE indicadores_por_ciudad
     anio					UInt16,
     periodo					UInt8,
     mes						String,
-    ciudad					FixedString(6),
+    ciudad					String,
     tpg						Float32,
     tpb						Float32,
     td						Float32,
@@ -292,9 +292,3 @@ ENGINE = MergeTree
 ORDER BY (anio, periodo, ciudad);
 
 
-CREATE TABLE IF NOT EXISTS Estudiantes 
-(
-    primero                 String
-)
-ENGINE = MergeTree
-ORDER BY (primero);
