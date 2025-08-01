@@ -61,6 +61,9 @@ services:
       - VIVIENDA_DIR=/data/enemdu_vivienda/unprocessed
       - PROCESSED_DIR_VIVIENDA=/data/enemdu_vivienda/processed
 
+      # Directorios dde indicadores
+      - INDICADOR_DIR=/data/resultados
+
       # Logs y errores
       - LOG_DIR=/logs
       - ERR_DIR=/errors
@@ -70,7 +73,11 @@ services:
     command: ["sh", "-c", "
         python ingest_codigos.py && \
         python ingest_vivienda.py && \
+        python ingest_indicadores.py && \ 
         python ingest_persona.py"]
+
+
+        
 
   superset:
     image: apache/superset:latest
