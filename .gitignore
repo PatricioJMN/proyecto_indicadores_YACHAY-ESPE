@@ -1,7 +1,2 @@
 # Ignore the 'data' directory
 # data/codigos_vivienda_inec/**
-data/enemdu_persona/**
-data/enemdu_vivienda/**
-data/mf_finanzas/**
-data/V-DEM/**
-data/LATINOBAROMETRO/**
