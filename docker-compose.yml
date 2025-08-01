@@ -74,6 +74,27 @@ services:
         superset db upgrade && \
         superset init && \
         exec superset run -h 0.0.0.0 -p 8088
+  indicadores:
+    build:
+      context: ./ingest
+      dockerfile: Dockerfile
+    container_name: indicadores_enemdu
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      enemdu_ingest:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/data:ro
+      - ./data/resultados:/data/resultados:rw
+    environment:
+      - CH_HOST=clickhouse
+      - CH_PORT=9000
+      - CH_USER=admin
+      - CH_PASSWORD=secret_pw
+      - CH_DATABASE=indicadores
+    command: ["python", "calcular_indicadores.py"]
+
 
 volumes:
   clickhouse_data:
