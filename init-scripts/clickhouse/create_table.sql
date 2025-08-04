@@ -236,63 +236,59 @@ ORDER BY (CodigoProvincia, CodigoCanton, CodigoParroquia);
 
 -- Tabla para indicadores nacionales
 drop table if exists indicadores_nacionales;
-CREATE TABLE indicadores_nacionales
-(
-    anio          UInt16,
-    periodo_num   UInt8,
-    area          UInt8,
-    tpg           Float32,
-    tpb           Float32,
-    td            Float32,
-    empleo_total  Float32,
-    formal        Float32,
-    informal      Float32,
-    adecuado      Float32,
-    subempleo     Float32,
-    no_remunerado Float32,
-    otro_no_pleno Float32,
-    brecha_adecuado_hm Float32,
-    brecha_salarial_hm Float32,
-    nini          Float32,
-    desempleo_juvenil Float32,
-    trabajo_infantil Float32,
-    manufactura_empleo Float32
+CREATE TABLE indicadores_nacionales (
+    anio                 UInt16,
+    periodo_num          UInt8,
+    area                 UInt8,
+    tpg                  Float32,
+    tpb                  Float32,
+    td                   Float32,
+    empleo_total         Float32,
+    formal               Float32,
+    informal             Float32,
+    adecuado             Float32,
+    subempleo            Float32,
+    no_remunerado        Float32,
+    otro_no_pleno        Float32,
+    brecha_adecuado_hm   Float32,
+    brecha_salarial_hm   Float32,
+    nini                 Float32,
+    desempleo_juvenil    Float32,
+    trabajo_infantil     Float32,
+    manufactura_empleo   Float32
 )
 ENGINE = MergeTree
 ORDER BY (anio, periodo_num, area);
 
--- Tabla para indicadores por cantón y parroquia
+-- Tabla para indicadores por unidad geográfica (código unido y nombres)
 drop table if exists indicadores_canton;
-CREATE TABLE indicadores_canton
-(
-    CodigoProvincia   String,
-    NombreProvincia   String,
-    CodigoCanton      String,
-    NombreCanton      String,
-    CodigoParroquia   String,
-    NombreParroquia   String,
-    anio               UInt16,
-    periodo_num        UInt8,
-    area               UInt8,
-    tpg                Float32,
-    tpb                Float32,
-    td                 Float32,
-    empleo_total       Float32,
-    formal             Float32,
-    informal           Float32,
-    adecuado           Float32,
-    subempleo          Float32,
-    no_remunerado      Float32,
-    otro_no_pleno      Float32,
-    brecha_adecuado_hm Float32,
-    brecha_salarial_hm Float32,
-    nini               Float32,
-    desempleo_juvenil  Float32,
-    trabajo_infantil   Float32,
-    manufactura_empleo Float32
+CREATE TABLE indicadores_canton (
+    geo_code            String,
+    NombreProvincia     String,
+    NombreCanton        String,
+    NombreParroquia     String,
+    anio                UInt16,
+    periodo_num         UInt8,
+    area                UInt8,
+    tpg                 Float32,
+    tpb                 Float32,
+    td                  Float32,
+    empleo_total        Float32,
+    formal              Float32,
+    informal            Float32,
+    adecuado            Float32,
+    subempleo           Float32,
+    no_remunerado       Float32,
+    otro_no_pleno       Float32,
+    brecha_adecuado_hm  Float32,
+    brecha_salarial_hm  Float32,
+    nini                Float32,
+    desempleo_juvenil   Float32,
+    trabajo_infantil    Float32,
+    manufactura_empleo  Float32
 )
 ENGINE = MergeTree
-ORDER BY (CodigoProvincia, CodigoCanton, CodigoParroquia, anio, periodo_num);
+ORDER BY (geo_code, anio, periodo_num, area);
 
 -- Vista materializada: indicadores nacionales
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_indicadores_nacionales
@@ -324,16 +320,14 @@ SELECT
 FROM enemdu_persona
 GROUP BY anio, periodo_num, area;
 
--- Vista materializada: indicadores por cantón y parroquia
+-- Vista materializada: indicadores por unidad geográfica
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_indicadores_canton
 TO indicadores_canton
 AS
 SELECT
-    substring(ciudad,1,2) AS CodigoProvincia,
+    concat(substring(ciudad,1,2), substring(ciudad,3,2), substring(ciudad,5,2)) AS geo_code,
     dic.NombreProvincia,
-    substring(ciudad,3,2) AS CodigoCanton,
     dic.NombreCanton,
-    substring(ciudad,5,2) AS CodigoParroquia,
     dic.NombreParroquia,
     toUInt16(substring(periodo,1,4)) AS anio,
     toUInt8(substring(periodo,5,2)) AS periodo_num,
@@ -362,7 +356,4 @@ LEFT JOIN diccionario_provincias AS dic
   ON dic.CodigoProvincia = substring(ciudad,1,2)
  AND dic.CodigoCanton    = substring(ciudad,3,2)
  AND dic.CodigoParroquia = substring(ciudad,5,2)
-GROUP BY CodigoProvincia, NombreProvincia,
-         CodigoCanton, NombreCanton,
-         CodigoParroquia, NombreParroquia,
-         anio, periodo_num, area;
+GROUP BY geo_code, NombreProvincia, NombreCanton, NombreParroquia, anio, periodo_num, area;
