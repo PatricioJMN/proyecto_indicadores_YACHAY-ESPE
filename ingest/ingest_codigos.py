@@ -15,8 +15,8 @@ ERR_DIR         = os.getenv('ERR_DIR', '/errors')
 STOP_ON_ERROR   = os.getenv('STOP_ON_ERROR', 'false').lower() in ('1', 'true', 'yes')
 
 # Parámetros específicos para codigos_vivienda_inec
-PROCESSED_DIR   = os.getenv('PROCESSED_DIR_CODIGOS', '/data/codigos_vivienda_inec/processed')
-DATA_DIR        = os.getenv('CODIGOS_DIR', '/data/codigos_vivienda_inec/unprocessed')
+PROCESSED_DIR   = os.getenv('PROCESSED_DIR_CODIGOS', '/data/diccionario/processed')
+DATA_DIR        = os.getenv('CODIGOS_DIR', '/data/diccionario/unprocessed')
 DATABASE        = os.getenv('CH_DATABASE', 'indicadores')
 TABLE           = os.getenv('CH_TABLE', 'codigos_vivienda_inec')
 

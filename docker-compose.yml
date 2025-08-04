@@ -49,9 +49,9 @@ services:
       - CH_PASSWORD=secret_pw
       - CH_DATABASE=indicadores
 
-      # Directorios de codigos_vivienda_inec
-      - CODIGOS_DIR=/data/codigos_vivienda_inec/unprocessed
-      - PROCESSED_DIR_CODIGOS=/data/codigos_vivienda_inec/processed
+      # Directorios de diccionario
+      - CODIGOS_DIR=/data/diccionario/unprocessed
+      - PROCESSED_DIR_CODIGOS=/data/diccionario/processed
 
       # Directorios de enemdu_persona
       - PERSONA_DIR=/data/enemdu_persona/unprocessed
@@ -60,9 +60,6 @@ services:
       # Directorios de enemdu_vivienda
       - VIVIENDA_DIR=/data/enemdu_vivienda/unprocessed
       - PROCESSED_DIR_VIVIENDA=/data/enemdu_vivienda/processed
-
-      # Directorios dde indicadores
-      - INDICADOR_DIR=/data/resultados
 
       # Logs y errores
       - LOG_DIR=/logs
@@ -75,9 +72,6 @@ services:
         python ingest_vivienda.py && \
         python ingest_indicadores.py && \ 
         python ingest_persona.py"]
-
-
-        
 
   superset:
     image: apache/superset:latest
@@ -132,8 +126,12 @@ services:
       - CH_USER=admin
       - CH_PASSWORD=secret_pw
       - CH_DATABASE=indicadores
-    command: ["python", "calcular_indicadores.py"]
-
+      
+      # Directorios dde indicadores
+      - INDICADOR_DIR=/data/resultados
+    command: ["sh", "-c", "
+        python calcular_indicadores.py && \
+        python ingest_indicadores.py"]
 
 volumes:
   clickhouse_data:
