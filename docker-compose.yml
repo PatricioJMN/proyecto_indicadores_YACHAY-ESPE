@@ -70,8 +70,7 @@ services:
     command: ["sh", "-c", "
         python ingest_codigos.py && \
         python ingest_vivienda.py && \
-        python ingest_indicadores.py && \ 
-        python ingest_persona.py"]
+        python ingest_persona.py"] 
 
   superset:
     image: apache/superset:latest
@@ -127,12 +126,14 @@ services:
       - CH_PASSWORD=secret_pw
       - CH_DATABASE=indicadores
       
-      # Directorios dde indicadores
+      # Directorios de indicadores
       - INDICADOR_DIR=/data/resultados
     command: ["sh", "-c", "
         python calcular_indicadores.py && \
-        python ingest_indicadores.py"]
-
+        python ingest_indicadores.py"] 
+    
+    
+  
 volumes:
   clickhouse_data:
   superset_home:
