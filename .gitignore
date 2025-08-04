@@ -1,8 +1,9 @@
-# Ignore the 'data' directory
+
 data/*/processed/*
 data/*/unprocessed/*
 data/resultados/**
 **/.DS_Store
+ingest/calcular_indicadores_test.ipynb
 # data/enemdu_persona/**
 # data/enemdu_vivienda/**
 # data/mf_finanzas/**

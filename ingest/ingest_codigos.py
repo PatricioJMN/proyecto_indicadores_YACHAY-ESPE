@@ -14,11 +14,11 @@ LOG_DIR         = os.getenv('LOG_DIR', '/logs')
 ERR_DIR         = os.getenv('ERR_DIR', '/errors')
 STOP_ON_ERROR   = os.getenv('STOP_ON_ERROR', 'false').lower() in ('1', 'true', 'yes')
 
-# Parámetros específicos para codigos_vivienda_inec
-PROCESSED_DIR   = os.getenv('PROCESSED_DIR_CODIGOS', '/data/diccionario/processed')
+# Parámetros específicos para diccionario_provincias
 DATA_DIR        = os.getenv('CODIGOS_DIR', '/data/diccionario/unprocessed')
+PROCESSED_DIR   = os.getenv('PROCESSED_DIR_CODIGOS', '/data/diccionario/processed')
 DATABASE        = os.getenv('CH_DATABASE', 'indicadores')
-TABLE           = os.getenv('CH_TABLE', 'codigos_vivienda_inec')
+TABLE           = os.getenv('CH_TABLE', 'diccionario_provincias')
 
 def ensure_dirs():
     for d in (LOG_DIR, ERR_DIR, PROCESSED_DIR):

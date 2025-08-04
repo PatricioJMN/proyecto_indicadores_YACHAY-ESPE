@@ -5,34 +5,34 @@ USE indicadores;
 
 -- Tabla para ENEMDU Persona
 CREATE TABLE IF NOT EXISTS enemdu_persona (
-    -- Columnas de texto
-    area           Nullable(String),
-    ciudad         String,
-    cod_inf        Nullable(String),
-    panelm         Nullable(String),
+    -- Variables de condición de actividad y empleo
+    condact        Nullable(Int32),   -- Código de condición de actividad (1–8 según ENEMDU)
+    desempleo      Nullable(Int32),   -- Indicador preprocesado de desempleo
+    empleo         Nullable(Int32),   -- Indicador preprocesado de empleo 
+    estrato        Nullable(Int32),   -- Nivel socioeconómico
+    nnivins        Nullable(Int32),   -- Nivel de instrucción
+    secemp         Nullable(Int32),   -- Sector de empleo (1=formal, 2=informal, 3=otro)
+    rama1          Nullable(Int32),   -- Rama de actividad principal (p.ej. manufactura)
+    upm            Nullable(Int128),  -- Unidad primaria de muestreo
+    vivienda       Nullable(Int32),   -- Identificador de vivienda dentro de UPM
+    
+    -- Pesos y montos de ingreso
+    fexp           Nullable(Float64), -- Factor de expansión para ponderar resultados
+    ingpc          Nullable(Float64), -- Ingreso per cápita (tras procesamiento)
+    ingrl          Nullable(Float64), -- Ingreso laboral reportado
 
-    -- Columnas numéricas pequeñas
-    condact        Nullable(Int32),
-    desempleo      Nullable(Int32),
-    empleo         Nullable(Int32),
-    estrato        Nullable(Int32),
-    nnivins        Nullable(Int32),
-	secemp         Nullable(Int32),
-    rama1          Nullable(Int32),
-	upm            Nullable(Int128),
-    vivienda       Nullable(Int32),
-	
-    -- Columnas flotantes de encuesta
-    fexp           Nullable(Float64),
-    ingpc          Nullable(Float64),
-    ingrl          Nullable(Float64),
-
-    -- IDs y contadores (64/128-bit signed)
+    -- Identificadores únicos y relacionales
     grupo1         Nullable(Int32),
     hogar          Nullable(Int64),
     id_hogar       Nullable(Int128),
     id_persona     Nullable(Int128),
     id_vivienda    Nullable(Int128),
+
+    -- Localización
+    area           Nullable(String),
+    ciudad         String,
+    cod_inf        Nullable(String),
+    panelm         Nullable(String),
 
     -- Resto de preguntas (32-bit signed)
     p01            Nullable(Int32),
@@ -96,7 +96,8 @@ CREATE TABLE IF NOT EXISTS enemdu_persona (
     p74b           Nullable(Int32),
     p75            Nullable(Int32),
     p76            Nullable(Int32),
-    periodo        String
+
+    periodo        String -- Formato 'YYYYMM', usado como clave de partición y ordenamiento
 )
 ENGINE = MergeTree
 ORDER BY (periodo)
@@ -222,7 +223,7 @@ CREATE TABLE enemdu_vivienda (
 ORDER BY (periodo);
 
 -- Tabla para los códigos de provincias/cantones
-CREATE TABLE IF NOT EXISTS codigos_vivienda_inec (
+CREATE TABLE IF NOT EXISTS diccionario_provincias (
     CodigoProvincia   String,
     CodigoCanton      String,
     CodigoParroquia   String,
@@ -233,55 +234,135 @@ CREATE TABLE IF NOT EXISTS codigos_vivienda_inec (
 ENGINE = MergeTree()
 ORDER BY (CodigoProvincia, CodigoCanton, CodigoParroquia);
 
--- Tabla para los códigos de indicadores nacionales
+-- Tabla para indicadores nacionales
+drop table if exists indicadores_nacionales;
 CREATE TABLE indicadores_nacionales
 (
-    anio					UInt16,
-    periodo					UInt8,
-    mes						String,
-    tpg						Float32,
-    tpb						Float32,
-    td						Float32,
-    empleo_total			Float32,
-    formal					Float32,
-    informal				Float32,
-    adecuado				Float32,
-    subempleo				Float32,
-    no_remunerado			Float32,
-    otro_no_pleno			Float32,
-    brecha_adecuado_hm		Float32,
-    brecha_salarial_hm		Float32,
-    nini					Float32,
-    desempleo_juvenil		Float32,
-    trabajo_infantil		Float32,
-    manufactura_empleo		Float32
+    anio          UInt16,
+    periodo_num   UInt8,
+    area          UInt8,
+    tpg           Float32,
+    tpb           Float32,
+    td            Float32,
+    empleo_total  Float32,
+    formal        Float32,
+    informal      Float32,
+    adecuado      Float32,
+    subempleo     Float32,
+    no_remunerado Float32,
+    otro_no_pleno Float32,
+    brecha_adecuado_hm Float32,
+    brecha_salarial_hm Float32,
+    nini          Float32,
+    desempleo_juvenil Float32,
+    trabajo_infantil Float32,
+    manufactura_empleo Float32
 )
 ENGINE = MergeTree
-ORDER BY (anio, periodo);
+ORDER BY (anio, periodo_num, area);
 
--- Tabla para los códigos de indicadores por ciudad
-CREATE TABLE indicadores_por_ciudad
+-- Tabla para indicadores por cantón y parroquia
+drop table if exists indicadores_canton;
+CREATE TABLE indicadores_canton
 (
-    anio					UInt16,
-    periodo					UInt8,
-    mes						String,
-    ciudad					String,
-    tpg						Float32,
-    tpb						Float32,
-    td						Float32,
-    empleo_total			Float32,
-    formal					Float32,
-    informal				Float32,
-    adecuado				Float32,
-    subempleo				Float32,
-    no_remunerado			Float32,
-    otro_no_pleno			Float32,
-    brecha_adecuado_hm		Float32,
-    brecha_salarial_hm		Float32,
-    nini					Float32,
-    desempleo_juvenil		Float32,
-    trabajo_infantil		Float32,
-    manufactura_empleo		Float32
+    CodigoProvincia   String,
+    NombreProvincia   String,
+    CodigoCanton      String,
+    NombreCanton      String,
+    CodigoParroquia   String,
+    NombreParroquia   String,
+    anio               UInt16,
+    periodo_num        UInt8,
+    area               UInt8,
+    tpg                Float32,
+    tpb                Float32,
+    td                 Float32,
+    empleo_total       Float32,
+    formal             Float32,
+    informal           Float32,
+    adecuado           Float32,
+    subempleo          Float32,
+    no_remunerado      Float32,
+    otro_no_pleno      Float32,
+    brecha_adecuado_hm Float32,
+    brecha_salarial_hm Float32,
+    nini               Float32,
+    desempleo_juvenil  Float32,
+    trabajo_infantil   Float32,
+    manufactura_empleo Float32
 )
 ENGINE = MergeTree
-ORDER BY (anio, periodo, ciudad);
+ORDER BY (CodigoProvincia, CodigoCanton, CodigoParroquia, anio, periodo_num);
+
+-- Vista materializada: indicadores nacionales
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_indicadores_nacionales
+TO indicadores_nacionales
+AS
+SELECT
+    toUInt16(substring(periodo,1,4)) AS anio,
+    toUInt8(substring(periodo,5,2)) AS periodo_num,
+    toUInt8(area) AS area,
+    ifNull(100.0 * sumIf(fexp, p03 >= 15 AND condact BETWEEN 1 AND 8) / sumIf(fexp, p03 >= 15), 0) AS tpg,
+    ifNull(100.0 * sumIf(fexp, condact BETWEEN 1 AND 8) / sumIf(fexp,1), 0) AS tpb,
+    ifNull(100.0 * sumIf(fexp, condact IN (7,8)) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS td,
+    ifNull(100.0 * sumIf(fexp, condact BETWEEN 1 AND 6) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS empleo_total,
+    ifNull(100.0 * sumIf(fexp, secemp = 1) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS formal,
+    ifNull(100.0 * sumIf(fexp, secemp = 2) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS informal,
+    ifNull(100.0 * sumIf(fexp, condact = 1) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS adecuado,
+    ifNull(100.0 * sumIf(fexp, condact IN (2,3)) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS subempleo,
+    ifNull(100.0 * sumIf(fexp, condact = 5) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS no_remunerado,
+    ifNull(100.0 * sumIf(fexp, condact = 4) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS otro_no_pleno,
+    ifNull((100.0 * sumIf(fexp, p02 = 1 AND condact = 1) / sumIf(fexp, p02 = 1 AND condact BETWEEN 1 AND 8)
+       - 100.0 * sumIf(fexp, p02 = 2 AND condact = 1) / sumIf(fexp, p02 = 2 AND condact BETWEEN 1 AND 8)), 0) AS brecha_adecuado_hm,
+    ifNull(((sumIf(fexp * ingrl, p02 = 1 AND ingrl > 0) / sumIf(fexp, p02 = 1 AND ingrl > 0))
+      - (sumIf(fexp * ingrl, p02 = 2 AND ingrl > 0) / sumIf(fexp, p02 = 2 AND ingrl > 0)))
+      / (sumIf(fexp * ingrl, p02 = 1 AND ingrl > 0) / sumIf(fexp, p02 = 1 AND ingrl > 0)) * 100.0, 0) AS brecha_salarial_hm,
+    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 15 AND 24 AND (p07 = 2 OR p07 IS NULL)) / sumIf(fexp, p03 BETWEEN 15 AND 24), 0) AS nini,
+    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 18 AND 29 AND condact IN (7,8)) / sumIf(fexp, p03 BETWEEN 18 AND 29 AND condact BETWEEN 1 AND 8), 0) AS desempleo_juvenil,
+    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 5 AND 14 AND (condact BETWEEN 1 AND 6 OR p24 > 0)) / sumIf(fexp, p03 BETWEEN 5 AND 14), 0) AS trabajo_infantil,
+    ifNull(100.0 * sumIf(fexp, rama1 = 3) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS manufactura_empleo
+FROM enemdu_persona
+GROUP BY anio, periodo_num, area;
+
+-- Vista materializada: indicadores por cantón y parroquia
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_indicadores_canton
+TO indicadores_canton
+AS
+SELECT
+    substring(ciudad,1,2) AS CodigoProvincia,
+    dic.NombreProvincia,
+    substring(ciudad,3,2) AS CodigoCanton,
+    dic.NombreCanton,
+    substring(ciudad,5,2) AS CodigoParroquia,
+    dic.NombreParroquia,
+    toUInt16(substring(periodo,1,4)) AS anio,
+    toUInt8(substring(periodo,5,2)) AS periodo_num,
+    toUInt8(area) AS area,
+    ifNull(100.0 * sumIf(fexp, p03 >= 15 AND condact BETWEEN 1 AND 8) / sumIf(fexp, p03 >= 15), 0) AS tpg,
+    ifNull(100.0 * sumIf(fexp, condact BETWEEN 1 AND 8) / sumIf(fexp,1), 0) AS tpb,
+    ifNull(100.0 * sumIf(fexp, condact IN (7,8)) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS td,
+    ifNull(100.0 * sumIf(fexp, condact BETWEEN 1 AND 6) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS empleo_total,
+    ifNull(100.0 * sumIf(fexp, secemp = 1) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS formal,
+    ifNull(100.0 * sumIf(fexp, secemp = 2) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS informal,
+    ifNull(100.0 * sumIf(fexp, condact = 1) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS adecuado,
+    ifNull(100.0 * sumIf(fexp, condact IN (2,3)) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS subempleo,
+    ifNull(100.0 * sumIf(fexp, condact = 5) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS no_remunerado,
+    ifNull(100.0 * sumIf(fexp, condact = 4) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS otro_no_pleno,
+    ifNull((100.0 * sumIf(fexp, p02 = 1 AND condact = 1) / sumIf(fexp, p02 = 1 AND condact BETWEEN 1 AND 8)
+       - 100.0 * sumIf(fexp, p02 = 2 AND condact = 1) / sumIf(fexp, p02 = 2 AND condact BETWEEN 1 AND 8)), 0) AS brecha_adecuado_hm,
+    ifNull(((sumIf(fexp * ingrl, p02 = 1 AND ingrl > 0) / sumIf(fexp, p02 = 1 AND ingrl > 0))
+      - (sumIf(fexp * ingrl, p02 = 2 AND ingrl > 0) / sumIf(fexp, p02 = 2 AND ingrl > 0)))
+      / (sumIf(fexp * ingrl, p02 = 1 AND ingrl > 0) / sumIf(fexp, p02 = 1 AND ingrl > 0)) * 100.0, 0) AS brecha_salarial_hm,
+    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 15 AND 24 AND (p07 = 2 OR p07 IS NULL)) / sumIf(fexp, p03 BETWEEN 15 AND 24), 0) AS nini,
+    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 18 AND 29 AND condact IN (7,8)) / sumIf(fexp, p03 BETWEEN 18 AND 29 AND condact BETWEEN 1 AND 8), 0) AS desempleo_juvenil,
+    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 5 AND 14 AND (condact BETWEEN 1 AND 6 OR p24 > 0)) / sumIf(fexp, p03 BETWEEN 5 AND 14), 0) AS trabajo_infantil,
+    ifNull(100.0 * sumIf(fexp, rama1 = 3) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS manufactura_empleo
+FROM enemdu_persona
+LEFT JOIN diccionario_provincias AS dic
+  ON dic.CodigoProvincia = substring(ciudad,1,2)
+ AND dic.CodigoCanton    = substring(ciudad,3,2)
+ AND dic.CodigoParroquia = substring(ciudad,5,2)
+GROUP BY CodigoProvincia, NombreProvincia,
+         CodigoCanton, NombreCanton,
+         CodigoParroquia, NombreParroquia,
+         anio, periodo_num, area;
