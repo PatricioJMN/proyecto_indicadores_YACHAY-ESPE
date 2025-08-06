@@ -45,7 +45,7 @@ def _is_float(x: str) -> bool:
 FLOAT_COLS  = {'fexp','ingrl','ingpc'}
 INT_COLS    = {
     'condact','desempleo','empleo','secemp','estrato','nnivins','rama1',
-    'vivienda','grupo1','hogar','id_hogar','id_persona','id_vivienda','upm',
+    'vivienda','epobreza','grupo1','hogar','id_hogar','id_persona','id_vivienda','upm',
     'p01','p02','p03','p04','p06','p07','p09','p10a','p10b','p15',
     'p20','p21','p22','p23','p24','p25','p26','p27','p28','p29',
     'p32','p33','p34','p35','p36','p37','p38','p39','p40','p41',

@@ -1,4 +1,3 @@
-
 -- Crear la Base de Datos en ClickHouse
 CREATE DATABASE IF NOT EXISTS indicadores;
 USE indicadores;
@@ -15,6 +14,7 @@ CREATE TABLE IF NOT EXISTS enemdu_persona (
     rama1          Nullable(Int32),   -- Rama de actividad principal (p.ej. manufactura)
     upm            Nullable(Int128),  -- Unidad primaria de muestreo
     vivienda       Nullable(Int32),   -- Identificador de vivienda dentro de UPM
+    epobreza       Nullable(Int32),   -- Identificador de vivienda dentro de UPM
     
     -- Pesos y montos de ingreso
     fexp           Nullable(Float64), -- Factor de expansión para ponderar resultados
@@ -234,39 +234,10 @@ CREATE TABLE IF NOT EXISTS diccionario_provincias (
 ENGINE = MergeTree()
 ORDER BY (CodigoProvincia, CodigoCanton, CodigoParroquia);
 
--- Tabla para indicadores nacionales
-drop table if exists indicadores_nacionales;
-CREATE TABLE indicadores_nacionales (
-    anio                 UInt16,
-    periodo_num          UInt8,
-    area                 UInt8,
-    tpg                  Float32,
-    tpb                  Float32,
-    td                   Float32,
-    empleo_total         Float32,
-    formal               Float32,
-    informal             Float32,
-    adecuado             Float32,
-    subempleo            Float32,
-    no_remunerado        Float32,
-    otro_no_pleno        Float32,
-    brecha_adecuado_hm   Float32,
-    brecha_salarial_hm   Float32,
-    nini                 Float32,
-    desempleo_juvenil    Float32,
-    trabajo_infantil     Float32,
-    manufactura_empleo   Float32
-)
-ENGINE = MergeTree
-ORDER BY (anio, periodo_num, area);
-
--- Tabla para indicadores por unidad geográfica (código unido y nombres)
-drop table if exists indicadores_canton;
-CREATE TABLE indicadores_canton (
-    geo_code            String,
-    NombreProvincia     String,
-    NombreCanton        String,
-    NombreParroquia     String,
+-- Tablas de indicadores separadas:
+-- 1) Indicadores nacionales persona
+DROP TABLE IF EXISTS indicadores_persona_nacionales;
+CREATE TABLE indicadores_persona_nacionales (
     anio                UInt16,
     periodo_num         UInt8,
     area                UInt8,
@@ -288,72 +259,137 @@ CREATE TABLE indicadores_canton (
     manufactura_empleo  Float32
 )
 ENGINE = MergeTree
+ORDER BY (anio, periodo_num, area);
+
+-- 3) Indicadores canton persona
+DROP TABLE IF EXISTS indicadores_persona_canton;
+CREATE TABLE indicadores_persona_canton (
+    geo_code        String,
+    NombreProvincia String,
+    NombreCanton    String,
+    NombreParroquia String,
+    anio            UInt16,
+    periodo_num     UInt8,
+    area            UInt8,
+    tpg             Float32,
+    tpb             Float32,
+    td              Float32,
+    empleo_total    Float32,
+    formal          Float32,
+    informal        Float32,
+    adecuado        Float32,
+    subempleo       Float32,
+    no_remunerado   Float32,
+    otro_no_pleno   Float32,
+    brecha_adecuado_hm Float32,
+    brecha_salarial_hm Float32,
+    nini            Float32,
+    desempleo_juvenil Float32,
+    trabajo_infantil Float32,
+    manufactura_empleo Float32
+)
+ENGINE = MergeTree
 ORDER BY (geo_code, anio, periodo_num, area);
 
--- Vista materializada: indicadores nacionales
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_indicadores_nacionales
-TO indicadores_nacionales
+-- Vistas materializadas:
+-- MV indicadores nacionales persona
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_indicadores_persona_nacionales
+TO indicadores_persona_nacionales
 AS
 SELECT
-    toUInt16(substring(periodo,1,4)) AS anio,
-    toUInt8(substring(periodo,5,2)) AS periodo_num,
-    toUInt8(area) AS area,
-    ifNull(100.0 * sumIf(fexp, p03 >= 15 AND condact BETWEEN 1 AND 8) / sumIf(fexp, p03 >= 15), 0) AS tpg,
-    ifNull(100.0 * sumIf(fexp, condact BETWEEN 1 AND 8) / sumIf(fexp,1), 0) AS tpb,
-    ifNull(100.0 * sumIf(fexp, condact IN (7,8)) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS td,
-    ifNull(100.0 * sumIf(fexp, condact BETWEEN 1 AND 6) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS empleo_total,
-    ifNull(100.0 * sumIf(fexp, secemp = 1) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS formal,
-    ifNull(100.0 * sumIf(fexp, secemp = 2) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS informal,
-    ifNull(100.0 * sumIf(fexp, condact = 1) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS adecuado,
-    ifNull(100.0 * sumIf(fexp, condact IN (2,3)) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS subempleo,
-    ifNull(100.0 * sumIf(fexp, condact = 5) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS no_remunerado,
-    ifNull(100.0 * sumIf(fexp, condact = 4) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS otro_no_pleno,
-    ifNull((100.0 * sumIf(fexp, p02 = 1 AND condact = 1) / sumIf(fexp, p02 = 1 AND condact BETWEEN 1 AND 8)
-       - 100.0 * sumIf(fexp, p02 = 2 AND condact = 1) / sumIf(fexp, p02 = 2 AND condact BETWEEN 1 AND 8)), 0) AS brecha_adecuado_hm,
-    ifNull(((sumIf(fexp * ingrl, p02 = 1 AND ingrl > 0) / sumIf(fexp, p02 = 1 AND ingrl > 0))
-      - (sumIf(fexp * ingrl, p02 = 2 AND ingrl > 0) / sumIf(fexp, p02 = 2 AND ingrl > 0)))
-      / (sumIf(fexp * ingrl, p02 = 1 AND ingrl > 0) / sumIf(fexp, p02 = 1 AND ingrl > 0)) * 100.0, 0) AS brecha_salarial_hm,
-    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 15 AND 24 AND (p07 = 2 OR p07 IS NULL)) / sumIf(fexp, p03 BETWEEN 15 AND 24), 0) AS nini,
-    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 18 AND 29 AND condact IN (7,8)) / sumIf(fexp, p03 BETWEEN 18 AND 29 AND condact BETWEEN 1 AND 8), 0) AS desempleo_juvenil,
-    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 5 AND 14 AND (condact BETWEEN 1 AND 6 OR p24 > 0)) / sumIf(fexp, p03 BETWEEN 5 AND 14), 0) AS trabajo_infantil,
-    ifNull(100.0 * sumIf(fexp, rama1 = 3) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS manufactura_empleo
-FROM enemdu_persona
+    toUInt16(substring(p.periodo,1,4))                                       AS anio,
+    toUInt8(substring(p.periodo,5,2))                                        AS periodo_num,
+    toUInt8(p.area)                                                          AS area,
+    ifNull(100.0 * sumIf(p.fexp, p.p03 >= 15 AND p.condact BETWEEN 1 AND 8) / sumIf(p.fexp, p.p03 >= 15), 0)                    AS tpg,
+    ifNull(100.0 * sumIf(p.fexp, p.condact BETWEEN 1 AND 8) / sumIf(p.fexp, 1), 0)                                                AS tpb,
+    ifNull(100.0 * sumIf(p.fexp, p.condact IN (7,8)) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                              AS td,
+    ifNull(100.0 * sumIf(p.fexp, p.condact BETWEEN 1 AND 6) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                        AS empleo_total,
+    ifNull(100.0 * sumIf(p.fexp, p.secemp = 1) / sumIf(p.fexp, p.condact BETWEEN 1 AND 6), 0)                                    AS formal,
+    ifNull(100.0 * sumIf(p.fexp, p.secemp = 2) / sumIf(p.fexp, p.condact BETWEEN 1 AND 6), 0)                                    AS informal,
+    ifNull(100.0 * sumIf(p.fexp, p.condact = 1) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                                    AS adecuado,
+    ifNull(100.0 * sumIf(p.fexp, p.condact IN (2,3)) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                              AS subempleo,
+    ifNull(100.0 * sumIf(p.fexp, p.condact = 5) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                                    AS no_remunerado,
+    ifNull(100.0 * sumIf(p.fexp, p.condact = 4) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                                    AS otro_no_pleno,
+    ifNull((100.0 * sumIf(p.fexp, p.p02 = 1 AND p.condact = 1) / sumIf(p.fexp, p.p02 = 1 AND p.condact BETWEEN 1 AND 8)
+         - 100.0 * sumIf(p.fexp, p.p02 = 2 AND p.condact = 1) / sumIf(p.fexp, p.p02 = 2 AND p.condact BETWEEN 1 AND 8)), 0)      AS brecha_adecuado_hm,
+    ifNull(((sumIf(p.fexp * p.ingrl, p.p02 = 1 AND p.ingrl > 0) / sumIf(p.fexp, p.p02 = 1 AND p.ingrl > 0))
+         - (sumIf(p.fexp * p.ingrl, p.p02 = 2 AND p.ingrl > 0) / sumIf(p.fexp, p.p02 = 2 AND p.ingrl > 0)))
+         / (sumIf(p.fexp * p.ingrl, p.p02 = 1 AND p.ingrl > 0) / sumIf(p.fexp, p.p02 = 1 AND p.ingrl > 0)) * 100.0, 0)           AS brecha_salarial_hm,
+    ifNull(100.0 * sumIf(p.fexp, p.p03 BETWEEN 15 AND 24 AND (p.p07 = 2 OR p.p07 IS NULL)) / sumIf(p.fexp, p.p03 BETWEEN 15 AND 24), 0) AS nini,
+    ifNull(100.0 * sumIf(p.fexp, p.p03 BETWEEN 18 AND 29 AND p.condact IN (7,8)) / sumIf(p.fexp, p.p03 BETWEEN 18 AND 29 AND p.condact BETWEEN 1 AND 8), 0) AS desempleo_juvenil,
+    ifNull(100.0 * sumIf(p.fexp, p.p03 BETWEEN 5 AND 14 AND (p.condact BETWEEN 1 AND 6 OR p.p24 > 0)) / sumIf(p.fexp, p.p03 BETWEEN 5 AND 14), 0) AS trabajo_infantil,
+    ifNull(100.0 * sumIf(p.fexp, p.rama1 = 3) / sumIf(p.fexp, p.condact BETWEEN 1 AND 6), 0)                                         AS manufactura_empleo
+FROM enemdu_persona AS p
 GROUP BY anio, periodo_num, area;
 
--- Vista materializada: indicadores por unidad geográfica
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_indicadores_canton
-TO indicadores_canton
+-- MV indicadores canton persona
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_indicadores_persona_canton
+TO indicadores_persona_canton
 AS
 SELECT
-    concat(substring(ciudad,1,2), substring(ciudad,3,2), substring(ciudad,5,2)) AS geo_code,
+    concat(substr(p.ciudad,1,2),substr(p.ciudad,3,2),substr(p.ciudad,5,2))     AS geo_code,
     dic.NombreProvincia,
     dic.NombreCanton,
     dic.NombreParroquia,
-    toUInt16(substring(periodo,1,4)) AS anio,
-    toUInt8(substring(periodo,5,2)) AS periodo_num,
-    toUInt8(area) AS area,
-    ifNull(100.0 * sumIf(fexp, p03 >= 15 AND condact BETWEEN 1 AND 8) / sumIf(fexp, p03 >= 15), 0) AS tpg,
-    ifNull(100.0 * sumIf(fexp, condact BETWEEN 1 AND 8) / sumIf(fexp,1), 0) AS tpb,
-    ifNull(100.0 * sumIf(fexp, condact IN (7,8)) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS td,
-    ifNull(100.0 * sumIf(fexp, condact BETWEEN 1 AND 6) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS empleo_total,
-    ifNull(100.0 * sumIf(fexp, secemp = 1) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS formal,
-    ifNull(100.0 * sumIf(fexp, secemp = 2) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS informal,
-    ifNull(100.0 * sumIf(fexp, condact = 1) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS adecuado,
-    ifNull(100.0 * sumIf(fexp, condact IN (2,3)) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS subempleo,
-    ifNull(100.0 * sumIf(fexp, condact = 5) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS no_remunerado,
-    ifNull(100.0 * sumIf(fexp, condact = 4) / sumIf(fexp, condact BETWEEN 1 AND 8), 0) AS otro_no_pleno,
-    ifNull((100.0 * sumIf(fexp, p02 = 1 AND condact = 1) / sumIf(fexp, p02 = 1 AND condact BETWEEN 1 AND 8)
-       - 100.0 * sumIf(fexp, p02 = 2 AND condact = 1) / sumIf(fexp, p02 = 2 AND condact BETWEEN 1 AND 8)), 0) AS brecha_adecuado_hm,
-    ifNull(((sumIf(fexp * ingrl, p02 = 1 AND ingrl > 0) / sumIf(fexp, p02 = 1 AND ingrl > 0))
-      - (sumIf(fexp * ingrl, p02 = 2 AND ingrl > 0) / sumIf(fexp, p02 = 2 AND ingrl > 0)))
-      / (sumIf(fexp * ingrl, p02 = 1 AND ingrl > 0) / sumIf(fexp, p02 = 1 AND ingrl > 0)) * 100.0, 0) AS brecha_salarial_hm,
-    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 15 AND 24 AND (p07 = 2 OR p07 IS NULL)) / sumIf(fexp, p03 BETWEEN 15 AND 24), 0) AS nini,
-    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 18 AND 29 AND condact IN (7,8)) / sumIf(fexp, p03 BETWEEN 18 AND 29 AND condact BETWEEN 1 AND 8), 0) AS desempleo_juvenil,
-    ifNull(100.0 * sumIf(fexp, p03 BETWEEN 5 AND 14 AND (condact BETWEEN 1 AND 6 OR p24 > 0)) / sumIf(fexp, p03 BETWEEN 5 AND 14), 0) AS trabajo_infantil,
-    ifNull(100.0 * sumIf(fexp, rama1 = 3) / sumIf(fexp, condact BETWEEN 1 AND 6), 0) AS manufactura_empleo
-FROM enemdu_persona
+    toUInt16(substr(p.periodo,1,4))                                           AS anio,
+    toUInt8(substr(p.periodo,5,2))                                            AS periodo_num,
+    toUInt8(p.area)                                                            AS area,
+    ifNull(100.0 * sumIf(p.fexp, p.p03 >= 15 AND p.condact BETWEEN 1 AND 8) / sumIf(p.fexp, p.p03 >= 15), 0)                    AS tpg,
+    ifNull(100.0 * sumIf(p.fexp, p.condact BETWEEN 1 AND 8) / sumIf(p.fexp,1), 0)                                                AS tpb,
+    ifNull(100.0 * sumIf(p.fexp, p.condact IN (7,8)) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                              AS td,
+    ifNull(100.0 * sumIf(p.fexp, p.condact BETWEEN 1 AND 6) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                        AS empleo_total,
+    ifNull(100.0 * sumIf(p.fexp, p.secemp = 1) / sumIf(p.fexp, p.condact BETWEEN 1 AND 6), 0)                                    AS formal,
+    ifNull(100.0 * sumIf(p.fexp, p.secemp = 2) / sumIf(p.fexp, p.condact BETWEEN 1 AND 6), 0)                                    AS informal,
+    ifNull(100.0 * sumIf(p.fexp, p.condact = 1) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                                    AS adecuado,
+    ifNull(100.0 * sumIf(p.fexp, p.condact IN (2,3)) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                              AS subempleo,
+    ifNull(100.0 * sumIf(p.fexp, p.condact = 5) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                                    AS no_remunerado,
+    ifNull(100.0 * sumIf(p.fexp, p.condact = 4) / sumIf(p.fexp, p.condact BETWEEN 1 AND 8), 0)                                    AS otro_no_pleno,
+    ifNull((100.0 * sumIf(p.fexp, p.p02 = 1 AND p.condact = 1) / sumIf(p.fexp, p.p02 = 1 AND p.condact BETWEEN 1 AND 8)
+         - 100.0 * sumIf(p.fexp, p.p02 = 2 AND p.condact = 1) / sumIf(p.fexp, p.p02 = 2 AND p.condact BETWEEN 1 AND 8)), 0)      AS brecha_adecuado_hm,
+    ifNull(((sumIf(p.fexp * p.ingrl, p.p02 = 1 AND p.ingrl > 0) / sumIf(p.fexp, p.p02 = 1 AND p.ingrl > 0))
+         - (sumIf(p.fexp * p.ingrl, p.p02 = 2 AND p.ingrl > 0) / sumIf(p.fexp, p.p02 = 2 AND p.ingrl > 0)))
+         / (sumIf(p.fexp * p.ingrl, p.p02 = 1 AND p.ingrl > 0) / sumIf(p.fexp, p.p02 = 1 AND p.ingrl > 0)) * 100.0, 0)           AS brecha_salarial_hm,
+    ifNull(100.0 * sumIf(p.fexp, p.p03 BETWEEN 15 AND 24 AND (p.p07 = 2 OR p.p07 IS NULL)) / sumIf(p.fexp, p.p03 BETWEEN 15 AND 24), 0) AS nini,
+    ifNull(100.0 * sumIf(p.fexp, p.p03 BETWEEN 18 AND 29 AND p.condact IN (7,8)) / sumIf(p.fexp, p.p03 BETWEEN 18 AND 29 AND p.condact BETWEEN 1 AND 8), 0) AS desempleo_juvenil,
+    ifNull(100.0 * sumIf(p.fexp, p.p03 BETWEEN 5 AND 14 AND (p.condact BETWEEN 1 AND 6 OR p.p24 > 0)) / sumIf(p.fexp, p.p03 BETWEEN 5 AND 14), 0) AS trabajo_infantil,
+    ifNull(100.0 * sumIf(p.fexp, p.rama1 = 3) / sumIf(p.fexp, p.condact BETWEEN 1 AND 6), 0)                                         AS manufactura_empleo
+FROM enemdu_persona AS p
 LEFT JOIN diccionario_provincias AS dic
-  ON dic.CodigoProvincia = substring(ciudad,1,2)
- AND dic.CodigoCanton    = substring(ciudad,3,2)
- AND dic.CodigoParroquia = substring(ciudad,5,2)
+  ON dic.CodigoProvincia = substr(p.ciudad,1,2)
+ AND dic.CodigoCanton    = substr(p.ciudad,3,2)
+ AND dic.CodigoParroquia = substr(p.ciudad,5,2)
 GROUP BY geo_code, NombreProvincia, NombreCanton, NombreParroquia, anio, periodo_num, area;
+
+-- 1) Tabla de indicadores de pobreza por ingresos
+DROP TABLE IF EXISTS indicadores_pobreza;
+CREATE TABLE indicadores_pobreza (
+    anio                  UInt16,
+    periodo_num           UInt8,
+    area                  UInt8,
+    tasa_pobreza_ingresos Float32,
+    tasa_pobreza_extrema_ingresos Float32
+)
+ENGINE = MergeTree
+ORDER BY (anio, periodo_num, area);
+
+-- 2) Vista materializada que llena automáticamente indicadores_pobreza
+CREATE MATERIALIZED VIEW IF NOT EXISTS mv_indicadores_pobreza
+TO indicadores_pobreza
+AS
+SELECT
+    toUInt16(substr(p.periodo, 1, 4))                                                       AS anio,
+    toUInt8(substr(p.periodo, 5, 2))                                                        AS periodo_num,
+    toUInt8(p.area)                                                                         AS area,
+    -- Porcentaje ponderado de personas con ingreso per cápita por debajo de la línea de pobreza (Varía cada año)
+    ifNull(
+        100.0 * sumIf(p.fexp, p.ingpc < 91.43 AND p.ingpc > 0)
+              / sum(p.fexp),
+        0
+    )                                                                                       AS tasa_pobreza_ingresos,
+    ifNull(
+        100.0 * sumIf(p.fexp, p.ingpc < 51.53 AND p.ingpc > 0)
+              / sum(p.fexp),
+        0
+    )                                                                                       AS tasa_pobreza_extrema_ingresos
+FROM indicadores.enemdu_persona AS p
+GROUP BY anio, periodo_num, area;

@@ -1,4 +1,25 @@
 services:
+  enemdu_descarga:
+    build:
+      context: ./scripts_descarga
+      dockerfile: Dockerfile
+    container_name: enemdu_descarga
+    volumes:
+      - ./data/raw/ANUAL:/data/raw/ANUAL:rw
+      - ./data/enemdu_persona/unprocessed:/data/enemdu_persona/processed:rw
+      - ./data/enemdu_persona/unprocessed:/data/enemdu_persona/unprocessed:rw
+      - ./data/enemdu_vivienda/unprocessed:/data/enemdu_vivienda/processed:rw
+      - ./data/enemdu_vivienda/unprocessed:/data/enemdu_vivienda/unprocessed:rw
+    environment:
+      ENEMDU_ROOT: /data/raw/ANUAL
+      PERSONA_UNPROC: /data/enemdu_persona/unprocessed
+      PERSONA_PROCESSED: /data/enemdu_persona/processed
+      VIVIENDA_UNPROC: /data/enemdu_vivienda/unprocessed
+      VIVIENDA_PROCESSED: /data/enemdu_vivienda/processed
+    command: >
+      sh -c "python enemdu_descarga.py &&
+             python limpieza_persona.py &&
+             python limpieza_vivienda.py"
   clickhouse:
     image: yandex/clickhouse-server:latest
     container_name: clickhouse
@@ -96,30 +117,6 @@ services:
         python /app/superset-init/init_superset_db.py && \
         superset init && \
         exec superset run -h 0.0.0.0 -p 8088
-  # indicadores:
-  #   build:
-  #     context: ./ingest
-  #     dockerfile: Dockerfile
-  #   container_name: indicadores_enemdu
-  #   depends_on:
-  #     clickhouse:
-  #       condition: service_healthy
-  #     ingest:
-  #       condition: service_completed_successfully
-  #   volumes:
-  #     - ./data:/data:ro
-  #     - ./data/resultados:/data/resultados:rw
-  #   environment:
-  #     - CH_HOST=clickhouse
-  #     - CH_PORT=9000
-  #     - CH_USER=admin
-  #     - CH_PASSWORD=secret_pw
-  #     - CH_DATABASE=indicadores
-  #     # Directorios de indicadores
-  #     - INDICADOR_DIR=/data/resultados
-  #   command: ["sh", "-c", "
-  #       python calcular_indicadores.py && \
-  #       python ingest_indicadores.py"] 
 volumes:
   clickhouse_data:
   superset_home:
