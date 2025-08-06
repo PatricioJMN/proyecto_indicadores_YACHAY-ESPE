@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 # ─── CONFIGURACIÓN vía ENV ───
-BASE_DIR        = Path(os.getenv("ENEMDU_ROOT", "/data/ANUAL"))
+BASE_DIR        = Path(os.getenv("ENEMDU_ROOT", "/data/raw/ANUAL"))
 UNPROCESSED_DIR = Path(os.getenv("VIVIENDA_UNPROC", "/data/enemdu_vivienda/unprocessed"))
 PROCESSED_DIR   = Path(os.getenv("VIVIENDA_PROCESSED", "/data/enemdu_vivienda/processed"))
 

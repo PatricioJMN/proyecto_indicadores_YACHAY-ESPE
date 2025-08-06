@@ -2,9 +2,12 @@
 # Descarga SOLO los períodos que aún no existen localmente.
 # Estructura: <ROOT>/<año>/<periodo>/(modal_n)/archivos…
 
+import tempfile
 import re, time, os
 from pathlib import Path
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -16,7 +19,14 @@ ROOT = os.getenv("ENEMDU_ROOT", "/data/raw/ANUAL")
 os.makedirs(ROOT, exist_ok=True)
 
 opt = webdriver.ChromeOptions()
-opt.add_argument("--start-maximized")
+# Perfil temporal único para evitar “already in use”
+profile_dir = tempfile.mkdtemp(prefix="selenium-profile-")
+opt.add_argument(f"--user-data-dir={profile_dir}")
+# Flags recomendados en Docker
+opt.add_argument("--no-sandbox")
+opt.add_argument("--disable-dev-shm-usage")
+opt.add_argument("--headless")  # Quita si necesitas ver la UI
+# opt.add_argument("--start-maximized")
 opt.add_experimental_option("prefs", {
     "download.default_directory": str(ROOT),
     "profile.default_content_settings.popups": 0,
@@ -25,7 +35,9 @@ opt.add_experimental_option("prefs", {
     "safebrowsing.enabled": True,
     "profile.default_content_setting_values.automatic_downloads": 1,
 })
-drv  = webdriver.Chrome(options=opt)
+service = Service(ChromeDriverManager().install())
+drv  = webdriver.Chrome(service=service,
+                        options=opt)
 wait = WebDriverWait(drv, 25, poll_frequency=0.10)
 slug = lambda s: re.sub(r"\W+", "_", s).strip("_")
 MASK = (By.CSS_SELECTOR, "div.ui-widget-overlay.ui-dialog-mask")

@@ -33,19 +33,19 @@ services:
     ports:
       - "8123:8123"
       - "9000:9000"
-    healthcheck:
-      test: ["CMD", "clickhouse-client", "--query=SELECT 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    # healthcheck:
+    #   test: ["CMD", "clickhouse-client", "--query=SELECT 1"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
   ingest:
     build:
       context: ./ingest
       dockerfile: Dockerfile
     container_name: enemdu_ingest
     depends_on:
-      clickhouse:
-        condition: service_healthy
+      - clickhouse
+        # condition: service_healthy
     volumes:
       # CSVs codigos_vivienda_inec
       - ./data/diccionario/unprocessed:/data/diccionario/unprocessed:rw
