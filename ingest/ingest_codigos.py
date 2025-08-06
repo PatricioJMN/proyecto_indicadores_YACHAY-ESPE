@@ -10,8 +10,8 @@ from datetime import datetime
 # ========= Parámetros generales =========
 MAX_RETRIES     = int(os.getenv('MAX_RETRIES', 12))
 RETRY_DELAY     = int(os.getenv('RETRY_DELAY', 5))  # segundos
-LOG_DIR         = os.getenv('LOG_DIR', '/logs')
-ERR_DIR         = os.getenv('ERR_DIR', '/errors')
+LOG_DIR         = os.getenv('LOG_DIR', '/ingest/logs')
+ERR_DIR         = os.getenv('ERR_DIR', '/ingest/errors')
 STOP_ON_ERROR   = os.getenv('STOP_ON_ERROR', 'false').lower() in ('1', 'true', 'yes')
 
 # Parámetros específicos para diccionario_provincias
