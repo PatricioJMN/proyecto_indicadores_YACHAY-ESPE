@@ -17,9 +17,9 @@ services:
       VIVIENDA_UNPROC: /data/enemdu_vivienda/unprocessed
       VIVIENDA_PROCESSED: /data/enemdu_vivienda/processed
     command: >
-      sh -c "python enemdu_descarga.py &&
-             python limpieza_persona.py &&
-             python limpieza_vivienda.py"
+      sh -c "python -u enemdu_descarga.py &&
+             python -u limpieza_persona.py &&
+             python -u limpieza_vivienda.py"
   clickhouse:
     image: yandex/clickhouse-server:latest
     container_name: clickhouse
@@ -33,19 +33,20 @@ services:
     ports:
       - "8123:8123"
       - "9000:9000"
-    # healthcheck:
-    #   test: ["CMD", "clickhouse-client", "--query=SELECT 1"]
-    #   interval: 10s
-    #   timeout: 5s
-    #   retries: 5
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
   ingest:
     build:
       context: ./ingest
       dockerfile: Dockerfile
     container_name: enemdu_ingest
     depends_on:
-      - clickhouse
-        # condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      
     volumes:
       # CSVs codigos_vivienda_inec
       - ./data/diccionario/unprocessed:/data/diccionario/unprocessed:rw
@@ -57,8 +58,8 @@ services:
       - ./data/enemdu_vivienda/unprocessed:/data/enemdu_vivienda/unprocessed:rw
       - ./data/enemdu_vivienda/processed:/data/enemdu_vivienda/processed:rw
       # Logs y errores
-      - ./logs:/logs:rw
-      - ./errors:/errors:rw
+      - ./ingest/logs:/ingest/logs:rw
+      - ./ingest/errors:/ingest/errors:rw
     environment:
       - CH_HOST=clickhouse
       - CH_PORT=9000
@@ -75,8 +76,8 @@ services:
       - VIVIENDA_DIR=/data/enemdu_vivienda/unprocessed
       - PROCESSED_DIR_VIVIENDA=/data/enemdu_vivienda/processed
       # Logs y errores
-      - LOG_DIR=/logs
-      - ERR_DIR=/errors
+      - LOG_DIR=/ingest/logs
+      - ERR_DIR=/ingest/errors
       # Comportamiento en caso de error
       - STOP_ON_ERROR=true
     command: ["sh", "-c", "

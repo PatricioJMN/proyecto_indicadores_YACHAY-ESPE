@@ -133,7 +133,7 @@ wait.until(EC.element_to_be_clickable(
     (By.XPATH, "//span[text()='Estadísticas Sociodemográficas y Sociales']"))).click()
 wait.until(EC.element_to_be_clickable(
     (By.XPATH, "//td[span[text()='Trabajo']]"))).click()
-print("✔ Menú Trabajo abierto")
+print("Menú Trabajo abierto")
 
 ID_YEAR_L, ID_YEAR_F = "frmBi:lstOE:3:j_idt99_label", "frmBi:lstOE:3:j_idt99_focus"
 ID_PER_L , ID_PER_F  = "frmBi:slPeriodos_label"   , "frmBi:slPeriodos_focus"
@@ -172,5 +172,5 @@ for anio in iter_select(ID_YEAR_L, ID_YEAR_F):
 
             fila += 1
 
-print("\n✅ Actualización mensual completada.")
+print("\nActualización mensual completada.")
 drv.quit()

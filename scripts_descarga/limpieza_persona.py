@@ -1,99 +1,104 @@
 #!/usr/bin/env python3
 # limpieza_persona.py
-# Descomprime zips anidados y copia CSV según reglas por año sólo si NO existen en processed
-# Basado en código original :contentReference[oaicite:2]{index=2}
+# Extrae y copia sólo CSV nuevos a unprocessed (omitiendo los que ya existan en processed).
+# Ahora case-insensitive para .zip y .csv
 
 import os
 import re
 import shutil
 import zipfile
+import subprocess
 import tempfile
+import zlib
 from pathlib import Path
 
-# --- Configuración vía ENV ---
-BASE_DIR = Path(os.getenv("ENEMDU_ROOT", "/data/raw/ANUAL"))
-UNPROCESSED_DIR = Path(os.getenv("PERSONA_UNPROC", "/data/enemdu_persona/unprocessed"))
-PROCESSED_DIR   = Path(os.getenv("PERSONA_PROCESSED", "/data/enemdu_persona/processed"))
+# ─── CONFIGURACIÓN vía ENV ───
+BASE_DIR        = Path(os.getenv("ENEMDU_ROOT",      "/app/data/raw/ANUAL"))
+UNPROCESSED_DIR = Path(os.getenv("PERSONA_UNPROC",   "/app/data/enemdu_persona/unprocessed"))
+PROCESSED_DIR   = Path(os.getenv("PERSONA_PROCESSED","/app/data/enemdu_persona/processed"))
 
-# Asegura que existan ambos directorios
 for d in (UNPROCESSED_DIR, PROCESSED_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
-# Precompilamos ambos patterns
 regex_personas = re.compile(r'personas.*\.csv$', re.IGNORECASE)
 regex_persona  = re.compile(r'persona(?!s).*\.csv$', re.IGNORECASE)
 
-def match_csv(filename: str, year: int) -> bool:
-    """
-    True si el archivo debe copiarse según:
-      - <=2018: sólo 'personas'
-      - ==2019: 'personas' o 'persona'
-      - >=2020: sólo 'persona' y no 'tics'
-    """
-    lower = filename.lower()
+def match_csv(name: str, year: int) -> bool:
+    low = name.lower()
     if year <= 2018:
-        return bool(regex_personas.search(lower))
-    elif year == 2019:
-        return bool(regex_personas.search(lower)) or bool(regex_persona.search(lower))
-    else:
-        return bool(regex_persona.search(lower)) and ('tics' not in lower)
+        return bool(regex_personas.search(low))
+    if year == 2019:
+        return bool(regex_personas.search(low)) or bool(regex_persona.search(low))
+    return bool(regex_persona.search(low)) and 'tics' not in low
 
-def copiar_csv(src: Path, year: str, period: str):
-    nombre_dst = f"{year}_{period.replace(' ', '_')}_{src.name}"
-    dst = UNPROCESSED_DIR / nombre_dst
-    try:
-        shutil.copy(src, dst)
-        print(f"   ✔ Copiado: {dst.name}")
-    except Exception as e:
-        print(f"   ❌ Error copiando {src.name}: {e}")
+# lee nombres de CSV ya procesados
+processed_files = {p.name for p in PROCESSED_DIR.glob("*") if p.is_file() and p.suffix.lower() == ".csv"}
 
-def extraer_zip_recursivo(zip_path: Path, temp_dir: Path):
-    if not zipfile.is_zipfile(zip_path):
-        print(f"⚠️  No es ZIP válido → {zip_path.name}")
+def extraer(zp: Path, out: Path):
+    """Intenta con zipfile, si falla use unzip; luego busca zips anidados case-insensitive."""
+    if not zipfile.is_zipfile(zp):
+        print(f"⚠️  No es ZIP válido: {zp.name}")
         return
     try:
-        with zipfile.ZipFile(zip_path, "r") as zf:
-            zf.extractall(temp_dir)
-    except Exception as e:
-        print(f"⚠️  Falló extracción de {zip_path.name}: {e}")
-        return
-    for nested in temp_dir.rglob("*.zip"):
-        subdir = nested.with_suffix('')
-        subdir.mkdir(parents=True, exist_ok=True)
-        extraer_zip_recursivo(nested, subdir)
+        with zipfile.ZipFile(zp, "r") as zf:
+            zf.extractall(out)
+    except (zipfile.BadZipFile, zlib.error) as e:
+        print(f"⚠️  zipfile.extractall falló en {zp.name}: {e}. Usando unzip...")
+        try:
+            subprocess.run(
+                ["unzip", "-o", str(zp), "-d", str(out)],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+        except subprocess.CalledProcessError as e2:
+            print(f"❌  unzip falló en {zp.name}: {e2}")
+            return
+    # zips anidados (.zip, .ZIP, etc)
+    for nested in out.rglob("*"):
+        if nested.is_file() and nested.suffix.lower() == ".zip":
+            nested_out = nested.with_suffix("")
+            nested_out.mkdir(parents=True, exist_ok=True)
+            extraer(nested, nested_out)
 
-# --- Lista de ya procesados ---
-processed = {p.name for p in PROCESSED_DIR.glob("*.csv")}
-
-# --- Procesamiento principal ---
+# Recorre años/meses
 for year_dir in sorted(BASE_DIR.iterdir()):
-    if not year_dir.is_dir(): 
-        continue
+    if not year_dir.is_dir(): continue
     year = int(year_dir.name)
     for period_dir in sorted(year_dir.iterdir()):
-        if not period_dir.is_dir(): 
-            continue
+        if not period_dir.is_dir(): continue
         period = period_dir.name
-        print(f"\n📂 Revisando {year}/{period}")
+        print(f"\n📂 Procesando {year}/{period}")
 
-        # 1) CSV sueltos
-        for csv_file in period_dir.rglob("*.csv"):
-            if csv_file.name in processed:
-                print(f"⚠️  Ya procesado (skip): {csv_file.name}")
+        # 1) CSV sueltos (case-insensitive)
+        for candidate in period_dir.rglob("*"):
+            if not candidate.is_file() or candidate.suffix.lower() != ".csv":
                 continue
-            if match_csv(csv_file.name, year):
-                copiar_csv(csv_file, year_dir.name, period)
+            name = candidate.name
+            if name in processed_files:
+                print(f"- Skip (ya en processed): {name}")
+                continue
+            if match_csv(name, year):
+                dst = UNPROCESSED_DIR / f"{year}_{period.replace(' ','_')}_{name}"
+                shutil.copy(candidate, dst)
+                print(f"✔ Copiado: {dst.name}")
 
-        # 2) Zips anidados
-        for zip_file in period_dir.rglob("*.zip"):
-            print(f"📦 Procesando ZIP → {zip_file.relative_to(period_dir)}")
-            with tempfile.TemporaryDirectory() as tmp:
-                tmp_path = Path(tmp)
-                extraer_zip_recursivo(zip_file, tmp_path)
-                for csv_ex in tmp_path.rglob("*.csv"):
-                    if csv_ex.name in processed:
+        # 2) Zips (case-insensitive) y su contenido
+        for candidate in period_dir.rglob("*"):
+            if not candidate.is_file() or candidate.suffix.lower() != ".zip":
+                continue
+            print(f"📦 ZIP → {candidate.relative_to(period_dir)}")
+            with tempfile.TemporaryDirectory() as tmpd:
+                tmp_path = Path(tmpd)
+                extraer(candidate, tmp_path)
+                # CSV en extraídos
+                for extracted in tmp_path.rglob("*"):
+                    if not extracted.is_file() or extracted.suffix.lower() != ".csv":
                         continue
-                    if match_csv(csv_ex.name, year):
-                        copiar_csv(csv_ex, year_dir.name, period)
+                    name = extracted.name
+                    if name in processed_files:
+                        continue
+                    if match_csv(name, year):
+                        dst = UNPROCESSED_DIR / f"{year}_{period.replace(' ','_')}_{name}"
+                        shutil.copy(extracted, dst)
+                        print(f"✔ Copiado desde ZIP: {dst.name}")
 
-print("\n✅ Proceso completado. CSV nuevos en:", UNPROCESSED_DIR)
+print("\n✅ limpieza_persona completada.")

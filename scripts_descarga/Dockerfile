@@ -1,4 +1,5 @@
 FROM python:3.9-slim
+ENV PYTHONUNBUFFERED=1
 
 # 1) Instala Chrome y utilidades
 RUN apt-get update && apt-get install -y \
