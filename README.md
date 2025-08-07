@@ -1,6 +1,6 @@
 # Proyecto Indicadores YACHAY-ESPE
 
-Un sistema basado en Docker Compose para la obtención, procesamiento y visualización de indicadores de la ENEMDU (Encuesta Nacional de Empleo, Desempleo y Subempleo) en la plataforma YACHAY-ESPE.
+Sistema basado en Docker Compose para la obtención, procesamiento y visualización de indicadores de la ENEMDU (Encuesta Nacional de Empleo, Desempleo y Subempleo) en la plataforma YACHAY-ESPE.
 
 ---
 
@@ -9,47 +9,49 @@ Un sistema basado en Docker Compose para la obtención, procesamiento y visualiz
 Este proyecto orquesta cuatro componentes principales:
 
 1. **Scraper de ENEMDU**  
-   - Descarga automática de los archivos de encuesta ENEMDU desde el portal oficial mediante web scraping.  
+   Descarga automática de los archivos de encuesta ENEMDU desde el portal oficial mediante web scraping.
+
 2. **Limpieza y Normalización**  
-   - Procesa los CSV descargados, corrige formatos, llena valores faltantes y genera un dataset “limpio” en un directorio dedicado.  
+   Procesa los CSV descargados, corrige formatos, llena valores faltantes y genera un dataset “limpio” en `data/clean/`.
+
 3. **Base de Datos ClickHouse**  
-   - Servicio ClickHouse que ingiere los CSV limpios usando scripts Python para carga masiva.  
+   Servicio ClickHouse que ingiere los CSV limpios usando scripts en Python para carga masiva.
+
 4. **Visualización con Apache Superset**  
-   - Interfaz web de Superset pre-configurada para conectarse automáticamente a ClickHouse y generar dashboards de indicadores laborales.
+   Interfaz web de Superset preconfigurada para conectarse automáticamente a ClickHouse y generar dashboards de indicadores laborales.
 
 ---
 
 ## 🚀 Características
 
-- **Automatización completa**: un solo `docker-compose up` monta todos los servicios.  
-- **Modularidad**: cada componente corre en su propio contenedor. Fácil de escalar o actualizar por separado.  
-- **Reproducible**: entornos idénticos en desarrollo o producción gracias a Docker.  
-- **Dashboards interactivos**: gráficos y tablas configurables en Superset para un análisis exploratorio.  
+- **Automatización completa**: un solo `docker-compose up -d` monta todos los servicios.  
+- **Modularidad**: cada componente corre en su propio contenedor.  
+- **Reproducible**: entornos idénticos en desarrollo y producción gracias a Docker.  
+- **Dashboards interactivos**: gráficos y tablas configurables en Superset para análisis exploratorio.
 
 ---
 
 ## 📂 Estructura del Proyecto
 
+```bash
+proyecto_indicadores_YACHAY-ESPE/
 ├── docker-compose.yml
 ├── data/
-│ ├── diccionario
-│   └── Dockerfile
-│ ├── Dockerfile
-│ ├── Dockerfile
-│ ├── Dockerfile
-│ ├── Dockerfile
-│ ├── Dockerfile
-│ └── download_enemdu.py
+│   ├── Dockerfile
+│   ├── download_enemdu.py
+│   └── diccionario/
+│       └── Dockerfile
 ├── ingest/
-│ ├── Dockerfile
-│ └── clean_normalize.py
+│   ├── Dockerfile
+│   └── clean_normalize.py
 ├── init-scripts/
-│ ├── Dockerfile
-│ └── load_to_clickhouse.py
+│   ├── Dockerfile
+│   └── load_to_clickhouse.py
 ├── scripts_descarga/
-│ ├── Dockerfile
-│ └── superset_config.py
+│   ├── Dockerfile
+│   └── superset_config.py
 └── README.md
+```
 
 
 ---
