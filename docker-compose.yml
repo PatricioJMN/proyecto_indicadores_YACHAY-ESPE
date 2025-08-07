@@ -1,25 +1,29 @@
 services:
+  # Contenedor de descarga para las encuestas de ENEMDU
   enemdu_descarga:
     build:
       context: ./scripts_descarga
       dockerfile: Dockerfile
     container_name: enemdu_descarga
+    # Sin restart: para que termine y salga cuando acabe el script
     volumes:
       - ./data/raw/ANUAL:/data/raw/ANUAL:rw
-      - ./data/enemdu_persona/unprocessed:/data/enemdu_persona/processed:rw
+      - ./data/enemdu_persona/processed:/data/enemdu_persona/processed:rw
       - ./data/enemdu_persona/unprocessed:/data/enemdu_persona/unprocessed:rw
-      - ./data/enemdu_vivienda/unprocessed:/data/enemdu_vivienda/processed:rw
+      - ./data/enemdu_vivienda/processed:/data/enemdu_vivienda/processed:rw
       - ./data/enemdu_vivienda/unprocessed:/data/enemdu_vivienda/unprocessed:rw
     environment:
-      ENEMDU_ROOT: /data/raw/ANUAL
-      PERSONA_UNPROC: /data/enemdu_persona/unprocessed
+      ENEMDU_ROOT:       /data/raw/ANUAL
+      PERSONA_UNPROC:    /data/enemdu_persona/unprocessed
       PERSONA_PROCESSED: /data/enemdu_persona/processed
-      VIVIENDA_UNPROC: /data/enemdu_vivienda/unprocessed
+      VIVIENDA_UNPROC:   /data/enemdu_vivienda/unprocessed
       VIVIENDA_PROCESSED: /data/enemdu_vivienda/processed
     command: >
       sh -c "python -u enemdu_descarga.py &&
              python -u limpieza_persona.py &&
              python -u limpieza_vivienda.py"
+
+  # Contenedor para la base de datos (ClickHouse)
   clickhouse:
     image: yandex/clickhouse-server:latest
     container_name: clickhouse
@@ -38,17 +42,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Contenedor para la ingesta de los CSV a la base de datos
   ingest:
     build:
       context: ./ingest
       dockerfile: Dockerfile
     container_name: enemdu_ingest
+    # Sin restart: sale cuando acaben los scripts
     depends_on:
       clickhouse:
         condition: service_healthy
-      
+      enemdu_descarga:
+        condition: service_completed_successfully
     volumes:
-      # CSVs codigos_vivienda_inec
+      # CSVs diccionario
       - ./data/diccionario/unprocessed:/data/diccionario/unprocessed:rw
       - ./data/diccionario/processed:/data/diccionario/processed:rw
       # CSVs enemdu_persona
@@ -80,13 +88,16 @@ services:
       - ERR_DIR=/ingest/errors
       # Comportamiento en caso de error
       - STOP_ON_ERROR=true
-    command: ["sh", "-c", "
-        python ingest_codigos.py && \
-        python ingest_vivienda.py && \
-        python ingest_persona.py"] 
+    command: >
+      sh -c "python ingest_codigos.py &&
+             python ingest_vivienda.py &&
+             python ingest_persona.py"
+
+  # Contenedor para la visualización de indicadores (Superset)
   superset:
     image: apache/superset:latest
     container_name: superset
+    restart: always
     environment:
       - SUPERSET_LOAD_EXAMPLES=no
       - SUPERSET_SECRET_KEY=your_superset_secret
@@ -99,7 +110,10 @@ services:
     ports:
       - "8088:8088"
     depends_on:
-      - clickhouse
+      ingest:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
     volumes:
       - superset_home:/home/superset
       - ./init-scripts/superset:/app/superset-init:ro
@@ -118,6 +132,7 @@ services:
         python /app/superset-init/init_superset_db.py && \
         superset init && \
         exec superset run -h 0.0.0.0 -p 8088
+
 volumes:
   clickhouse_data:
   superset_home:

@@ -104,7 +104,7 @@ ORDER BY (periodo)
 SETTINGS index_granularity = 8192;
 
 -- Tabla para ENEMDU Vivienda
-CREATE TABLE enemdu_vivienda (
+CREATE TABLE IF NOT EXISTS enemdu_vivienda (
     -- Columnas de texto
     area            Nullable(String),
     ciudad			Nullable(String),
@@ -223,7 +223,8 @@ CREATE TABLE enemdu_vivienda (
 ORDER BY (periodo);
 
 -- Tabla para los códigos de provincias/cantones
-CREATE TABLE IF NOT EXISTS diccionario_provincias (
+DROP TABLE IF EXISTS diccionario_provincias;
+CREATE TABLE diccionario_provincias (
     CodigoProvincia   String,
     CodigoCanton      String,
     CodigoParroquia   String,
@@ -236,8 +237,8 @@ ORDER BY (CodigoProvincia, CodigoCanton, CodigoParroquia);
 
 -- Tablas de indicadores separadas:
 -- 1) Indicadores nacionales persona
-DROP TABLE IF EXISTS indicadores_persona_nacionales;
-CREATE TABLE indicadores_persona_nacionales (
+-- DROP TABLE IF EXISTS indicadores_persona_nacionales;
+CREATE TABLE IF NOT EXISTS indicadores_persona_nacionales (
     anio                UInt16,
     periodo_num         UInt8,
     area                UInt8,
@@ -262,8 +263,8 @@ ENGINE = MergeTree
 ORDER BY (anio, periodo_num, area);
 
 -- 3) Indicadores canton persona
-DROP TABLE IF EXISTS indicadores_persona_canton;
-CREATE TABLE indicadores_persona_canton (
+-- DROP TABLE IF EXISTS indicadores_persona_canton;
+CREATE TABLE IF NOT EXISTS indicadores_persona_canton (
     geo_code        String,
     NombreProvincia String,
     NombreCanton    String,
@@ -361,8 +362,8 @@ LEFT JOIN diccionario_provincias AS dic
 GROUP BY geo_code, NombreProvincia, NombreCanton, NombreParroquia, anio, periodo_num, area;
 
 -- 1) Tabla de indicadores de pobreza por ingresos
-DROP TABLE IF EXISTS indicadores_pobreza;
-CREATE TABLE indicadores_pobreza (
+-- DROP TABLE IF EXISTS indicadores_pobreza;
+CREATE TABLE IF NOT EXISTS indicadores_pobreza (
     anio                  UInt16,
     periodo_num           UInt8,
     area                  UInt8,
