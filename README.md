@@ -34,25 +34,50 @@ Este proyecto orquesta cuatro componentes principales:
 ## 📂 Estructura del Proyecto
 
 ```bash
-proyecto_indicadores_YACHAY-ESPE/
-├── docker-compose.yml
-├── data/
-│   ├── Dockerfile
-│   ├── download_enemdu.py
-│   └── diccionario/
-│       └── Dockerfile
-├── ingest/
-│   ├── Dockerfile
-│   └── clean_normalize.py
-├── init-scripts/
-│   ├── Dockerfile
-│   └── load_to_clickhouse.py
-├── scripts_descarga/
-│   ├── Dockerfile
-│   └── superset_config.py
-└── README.md
+└── patriciojmn-proyecto_indicadores_yachay-espe/
+    ├── README.md
+    ├── docker-compose.yml
+    ├── data/
+    │   ├── diccionario/
+    │   │   ├── processed/
+    │   │   │   └── *.csv
+    │   │   └── unprocessed/
+    │   │       └── *.csv
+    │   ├── enemdu_persona/
+    │   │   ├── processed/
+    │   │   │   └── *.csv
+    │   │   └── unprocessed/
+    │   │       └── *.csv
+    │   ├── enemdu_vivienda/
+    │   │   ├── processed/
+    │   │   │   └── *.csv
+    │   │   └── unprocessed/
+    │   │       └── *.csv
+    │   ├── raw/
+    │   │   └── ANUAL/
+    │   │       ├── 2007/
+    │   │       ├── 2008/
+    │   │       ├── ... /
+    │   │       └── 2025/
+    ├── ingest/
+    │   ├── calcular_indicadores.py
+    │   ├── Dockerfile
+    │   ├── ingest_codigos.py
+    │   ├── ingest_indicadores.py
+    │   ├── ingest_persona.py
+    │   └── ingest_vivienda.py
+    ├── init-scripts/
+    │   ├── clickhouse/
+    │   │   └── create_table.sql
+    │   └── superset/
+    │       └── init_superset_db.py
+    └── scripts_descarga/
+        ├── Dockerfile
+        ├── enemdu_descarga.py
+        ├── limpieza_persona.py
+        ├── limpieza_vivienda.py
+        └── requirements.txt
 ```
-
 
 ---
 
@@ -73,12 +98,12 @@ proyecto_indicadores_YACHAY-ESPE/
    ```
    
 2. **Configura variables de entorno (opcional)**
-Crea un archivo .env en la raíz con parámetros como credenciales de Superset o ClickHouse:
-  ```bash
-  CLICKHOUSE_USER=default
-  CLICKHOUSE_PASSWORD=ContrasenaSegura
-  SUPSER_PW=MiSuperContrasenaSegura
-  ```
+Crea un archivo .env en la raíz con parámetros como credenciales de Superset o ClickHouse (o simplemente edita el `docker-compose.yml`):
+   ```bash
+   CLICKHOUSE_USER=default
+   CLICKHOUSE_PASSWORD=ContrasenaSegura
+   SUPERSET_PW=MiSuperContrasenaSegura
+   ```
 
 3. **Levanta los servicios**
    ```bash
@@ -91,28 +116,29 @@ Crea un archivo .env en la raíz con parámetros como credenciales de Superset o
    ```
    
 5. **Accede a Superset**
-  URL: http://localhost:8088
-  Usuario: admin
-  Contraseña: la que definiste en .env (SUPSER_PW)
+   - URL: `http://localhost:8088`  
+   - Usuario: `admin`  
+   - Contraseña: la definida en `.env` (SUPERSET_PW)
 
 ---
 
 ## 🔄 Flujo de Trabajo Interno
 1. **Scraper:**
-   1.1. Ejecuta download_enemdu.py.
-   1.2. Guarda archivos .csv en data/raw/.
+   - 1.1. Ejecuta enemdu_descarga.py.
+   - 1.2. Guarda archivos .csv en data/raw/ANUAL.
 
 2. **Cleaner:**
-   2.1. Ejecuta clean_normalize.py.
-   2.2. Lee data/raw/*.csv, aplica transformaciones y vuelca a data/clean/.
+   - 2.1. Ejecuta limpieza_persona.py y limpieza_vivienda.py.
+   - 2.2. Lee data/raw/ANUAL/{AÑO}/*.zip, extrae los CSV comprimidos y vuelca a data/enemdu_persona/unprocessed/.
 
 3. **Carga en ClickHouse:**
-   3.1. Al iniciarse, load_to_clickhouse.py monitorea data/clean/ e ingiere nuevos CSVs.
-   3.2. Crea esquema y tablas si no existen.
+   - 3.1. Al iniciarse, crea esquema, tablas si no existen y las vistas materializadas con el cálculo automático de indicadores.
+   - 3.2. `ingest_codigos.py`, `ingest_vivienda.py` e `ingest_persona.py` monitorean data/enemdu_{vivienda/persona}/unprocessed/ e inserta los nuevos CSVs a la base de datos.
 
 4. **Superset:**
-   4.1. Configurado para apuntar a la base ClickHouse.
-   4.2. Excluye ejemplos de dashboards en superset/config.
+   - 4.1. Crea el usuario Administrador (configurado en el `docker-compose.yml`).
+   - 4.2. Configurado para apuntar a la base ClickHouse.
+   - 4.3. Excluye ejemplos de dashboards en superset/config.
 
 ---
 
@@ -120,12 +146,13 @@ Crea un archivo .env en la raíz con parámetros como credenciales de Superset o
 
 Forzar nueva descarga:
   ```bash
-  docker-compose exec scraper python download_enemdu.py --force
+  docker-compose exec enemdu_descarga python enemdu_descarga.py --force
   ```
 
 Procesar manualmente:
   ```bash
-  docker-compose exec cleaner python clean_normalize.py
+  docker-compose exec enemdu_descarga python limpieza_persona.py
+  docker-compose exec enemdu_descarga python limpieza_vivienda.py
   ```
 
 Resetear base de datos:
@@ -138,7 +165,8 @@ Resetear base de datos:
 
 ## 🤝 Contribuciones
 
-Ing. Patricio Mendoza (ESPE)
-  email: tototue2000@gmail.com
-M.Sc Francois Baquero (YachayTech)
-  email: franvois17@gmail.com
+- **Ing. Patricio Mendoza (ESPE)**  
+  - Email: `tototue2000@gmail.com`
+
+- **MsC. Francois Baquero (YachayTech)**  
+  - Email: `jenner.baquero@yachaytech.edu.ec`
