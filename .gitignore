@@ -2,6 +2,7 @@
 data/*/processed/*
 data/*/unprocessed/*
 data/resultados/**
+data/raw/ANUAL/*/*
 **/.DS_Store
 ingest/calcular_indicadores_test.ipynb
 # data/enemdu_persona/**

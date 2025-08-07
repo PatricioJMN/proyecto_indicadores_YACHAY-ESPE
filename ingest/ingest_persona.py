@@ -10,8 +10,8 @@ from datetime import datetime
 # ========= Parámetros generales =========
 MAX_RETRIES     = int(os.getenv('MAX_RETRIES', 12))
 RETRY_DELAY     = int(os.getenv('RETRY_DELAY', 5))    # segundos
-LOG_DIR         = os.getenv('LOG_DIR', '/logs')
-ERR_DIR         = os.getenv('ERR_DIR', '/errors')
+LOG_DIR         = os.getenv('LOG_DIR', '/ingest/logs')
+ERR_DIR         = os.getenv('ERR_DIR', '/ingest/errors')
 STOP_ON_ERROR   = os.getenv('STOP_ON_ERROR', 'false').lower() in ('1', 'true', 'yes')
 USE_SENTINELS   = os.getenv('USE_SENTINELS', 'false').lower() in ('1', 'true', 'yes')
 
@@ -45,7 +45,7 @@ def _is_float(x: str) -> bool:
 FLOAT_COLS  = {'fexp','ingrl','ingpc'}
 INT_COLS    = {
     'condact','desempleo','empleo','secemp','estrato','nnivins','rama1',
-    'vivienda','grupo1','hogar','id_hogar','id_persona','id_vivienda','upm',
+    'vivienda','epobreza','grupo1','hogar','id_hogar','id_persona','id_vivienda','upm',
     'p01','p02','p03','p04','p06','p07','p09','p10a','p10b','p15',
     'p20','p21','p22','p23','p24','p25','p26','p27','p28','p29',
     'p32','p33','p34','p35','p36','p37','p38','p39','p40','p41',

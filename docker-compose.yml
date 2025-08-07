@@ -1,4 +1,29 @@
 services:
+  # Contenedor de descarga para las encuestas de ENEMDU
+  enemdu_descarga:
+    build:
+      context: ./scripts_descarga
+      dockerfile: Dockerfile
+    container_name: enemdu_descarga
+    # Sin restart: para que termine y salga cuando acabe el script
+    volumes:
+      - ./data/raw/ANUAL:/data/raw/ANUAL:rw
+      - ./data/enemdu_persona/processed:/data/enemdu_persona/processed:rw
+      - ./data/enemdu_persona/unprocessed:/data/enemdu_persona/unprocessed:rw
+      - ./data/enemdu_vivienda/processed:/data/enemdu_vivienda/processed:rw
+      - ./data/enemdu_vivienda/unprocessed:/data/enemdu_vivienda/unprocessed:rw
+    environment:
+      ENEMDU_ROOT:       /data/raw/ANUAL
+      PERSONA_UNPROC:    /data/enemdu_persona/unprocessed
+      PERSONA_PROCESSED: /data/enemdu_persona/processed
+      VIVIENDA_UNPROC:   /data/enemdu_vivienda/unprocessed
+      VIVIENDA_PROCESSED: /data/enemdu_vivienda/processed
+    command: >
+      sh -c "python -u enemdu_descarga.py &&
+             python -u limpieza_persona.py &&
+             python -u limpieza_vivienda.py"
+
+  # Contenedor para la base de datos (ClickHouse)
   clickhouse:
     image: yandex/clickhouse-server:latest
     container_name: clickhouse
@@ -13,20 +38,25 @@ services:
       - "8123:8123"
       - "9000:9000"
     healthcheck:
-      test: ["CMD", "clickhouse-client", "--query=SELECT 1"]
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Contenedor para la ingesta de los CSV a la base de datos
   ingest:
     build:
       context: ./ingest
       dockerfile: Dockerfile
     container_name: enemdu_ingest
+    # Sin restart: sale cuando acaben los scripts
     depends_on:
       clickhouse:
         condition: service_healthy
+      enemdu_descarga:
+        condition: service_completed_successfully
     volumes:
-      # CSVs codigos_vivienda_inec
+      # CSVs diccionario
       - ./data/diccionario/unprocessed:/data/diccionario/unprocessed:rw
       - ./data/diccionario/processed:/data/diccionario/processed:rw
       # CSVs enemdu_persona
@@ -36,8 +66,8 @@ services:
       - ./data/enemdu_vivienda/unprocessed:/data/enemdu_vivienda/unprocessed:rw
       - ./data/enemdu_vivienda/processed:/data/enemdu_vivienda/processed:rw
       # Logs y errores
-      - ./logs:/logs:rw
-      - ./errors:/errors:rw
+      - ./ingest/logs:/ingest/logs:rw
+      - ./ingest/errors:/ingest/errors:rw
     environment:
       - CH_HOST=clickhouse
       - CH_PORT=9000
@@ -54,17 +84,20 @@ services:
       - VIVIENDA_DIR=/data/enemdu_vivienda/unprocessed
       - PROCESSED_DIR_VIVIENDA=/data/enemdu_vivienda/processed
       # Logs y errores
-      - LOG_DIR=/logs
-      - ERR_DIR=/errors
+      - LOG_DIR=/ingest/logs
+      - ERR_DIR=/ingest/errors
       # Comportamiento en caso de error
       - STOP_ON_ERROR=true
-    command: ["sh", "-c", "
-        python ingest_codigos.py && \
-        python ingest_vivienda.py && \
-        python ingest_persona.py"] 
+    command: >
+      sh -c "python ingest_codigos.py &&
+             python ingest_vivienda.py &&
+             python ingest_persona.py"
+
+  # Contenedor para la visualización de indicadores (Superset)
   superset:
     image: apache/superset:latest
     container_name: superset
+    restart: always
     environment:
       - SUPERSET_LOAD_EXAMPLES=no
       - SUPERSET_SECRET_KEY=your_superset_secret
@@ -77,7 +110,10 @@ services:
     ports:
       - "8088:8088"
     depends_on:
-      - clickhouse
+      ingest:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
     volumes:
       - superset_home:/home/superset
       - ./init-scripts/superset:/app/superset-init:ro
@@ -96,30 +132,7 @@ services:
         python /app/superset-init/init_superset_db.py && \
         superset init && \
         exec superset run -h 0.0.0.0 -p 8088
-  # indicadores:
-  #   build:
-  #     context: ./ingest
-  #     dockerfile: Dockerfile
-  #   container_name: indicadores_enemdu
-  #   depends_on:
-  #     clickhouse:
-  #       condition: service_healthy
-  #     ingest:
-  #       condition: service_completed_successfully
-  #   volumes:
-  #     - ./data:/data:ro
-  #     - ./data/resultados:/data/resultados:rw
-  #   environment:
-  #     - CH_HOST=clickhouse
-  #     - CH_PORT=9000
-  #     - CH_USER=admin
-  #     - CH_PASSWORD=secret_pw
-  #     - CH_DATABASE=indicadores
-  #     # Directorios de indicadores
-  #     - INDICADOR_DIR=/data/resultados
-  #   command: ["sh", "-c", "
-  #       python calcular_indicadores.py && \
-  #       python ingest_indicadores.py"] 
+
 volumes:
   clickhouse_data:
   superset_home:
