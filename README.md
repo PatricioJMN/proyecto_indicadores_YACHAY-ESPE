@@ -124,16 +124,16 @@ Crea un archivo .env en la raíz con parámetros como credenciales de Superset o
 
 ## 🔄 Flujo de Trabajo Interno
 1. **Scraper:**
-   - 1.1. Ejecuta enemdu_descarga.py.
-   - 1.2. Guarda archivos .csv en data/raw/ANUAL.
+   - 1.1. Ejecuta `enemdu_descarga.py`.
+   - 1.2. Guarda archivos .csv en `data/raw/ANUAL`.
 
 2. **Cleaner:**
-   - 2.1. Ejecuta limpieza_persona.py y limpieza_vivienda.py.
-   - 2.2. Lee data/raw/ANUAL/{AÑO}/*.zip, extrae los CSV comprimidos y vuelca a data/enemdu_persona/unprocessed/.
+   - 2.1. Ejecuta `limpieza_persona.py` y `limpieza_vivienda.py`.
+   - 2.2. Lee `data/raw/ANUAL/{AÑO}/*.zip`, extrae los CSV comprimidos y vuelca a `data/enemdu_persona/unprocessed/`.
 
 3. **Carga en ClickHouse:**
    - 3.1. Al iniciarse, crea esquema, tablas si no existen y las vistas materializadas con el cálculo automático de indicadores.
-   - 3.2. `ingest_codigos.py`, `ingest_vivienda.py` e `ingest_persona.py` monitorean data/enemdu_{vivienda/persona}/unprocessed/ e inserta los nuevos CSVs a la base de datos.
+   - 3.2. `ingest_codigos.py`, `ingest_vivienda.py` e `ingest_persona.py` monitorean `data/enemdu_{vivienda/persona}/unprocessed/` e inserta los nuevos CSVs a la base de datos.
 
 4. **Superset:**
    - 4.1. Crea el usuario Administrador (configurado en el `docker-compose.yml`).
@@ -169,4 +169,4 @@ Resetear base de datos:
   - Email: `tototue2000@gmail.com`
 
 - **MsC. Francois Baquero (YachayTech)**  
-  - Email: `jenner.baquero@yachaytech.edu.ec`
+  - Email: `franvois17@gmail.com`
