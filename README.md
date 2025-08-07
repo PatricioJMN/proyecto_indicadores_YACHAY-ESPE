@@ -140,5 +140,5 @@ Resetear base de datos:
 
 Ing. Patricio Mendoza (ESPE)
   email: tototue2000@gmail.com
-MsC. Francois Baquero (YachayTech)
-  email: jenner.baquero@yachaytech.edu.ec
+M.Sc Francois Baquero (YachayTech)
+  email: franvois17@gmail.com
